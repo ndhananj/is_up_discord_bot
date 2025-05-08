@@ -22,9 +22,12 @@ CONFIG = {
     # Channel ID where the bot will report status
     "status_channel_id": int(os.getenv("STATUS_CHANNEL_ID", "YOUR_PRIVATE_CHANNEL_ID")),
     
+    # User ID to send direct messages to
+    "user_id": int(os.getenv("USER_ID", "YOUR_DISCORD_USER_ID")),
+    
     # How often to check the website (in seconds)
-    # Default is every 10 seconds
-    "check_interval": 10,
+    # Default is every hour
+    "check_interval": 3600,
     
     # Display name for the website being monitored
     "website_name": "ResilientInterface",
@@ -109,11 +112,16 @@ async def check_website():
     last_status = status
 
 async def report_status(status):
-    """Report status to Discord channel"""
+    """Report status to Discord channel and user"""
     status_channel = bot.get_channel(CONFIG["status_channel_id"])
+    user = await bot.fetch_user(CONFIG["user_id"])
     
     if not status_channel:
         print(f"Cannot find channel with ID {CONFIG['status_channel_id']}")
+        return
+    
+    if not user:
+        print(f"Cannot find user with ID {CONFIG['user_id']}")
         return
     
     # Create embed for Discord message
@@ -130,7 +138,16 @@ async def report_status(status):
     embed.add_field(name="Checked URL", value=CONFIG["check_url"])
     embed.set_footer(text="Website Monitor Bot")
     
+    # Send to channel
     await status_channel.send(embed=embed)
+    
+    # Send to user
+    try:
+        await user.send(embed=embed)
+    except discord.Forbidden:
+        print(f"Cannot send DM to user {user.name}. They may have DMs disabled.")
+    except Exception as e:
+        print(f"Error sending DM to user: {str(e)}")
 
 @check_website.before_loop
 async def before_check_website():
